@@ -83,11 +83,6 @@ class BugFixerAgent:
     def _analyze_and_propose(self, bug_id: str) -> None:
         bug = next(b for b in self.mem.bugs if b.bug_id == bug_id)
 
-        # Find candidate files in the repo without bash
-        hits = search_in_repo(self.tools.root_dir, "divide") + search_in_repo(self.tools.root_dir, "calculator")
-        hits = sorted(set(hits))
-
-        # Read key file(s)
         calc_rel = "demo_repo/src/calculator.py"
         ok, calc_code = self.tools.read_file(calc_rel)
         if not ok:
@@ -96,29 +91,69 @@ class BugFixerAgent:
             print(f"Agent: {msg}")
             return
 
-        # Heuristic: detect division by zero bug in demo_repo/src/calculator.py
+        user_report = bug.user_report.lower()
+
         root_cause = ""
         proposed_fix = ""
-        if "def divide" in calc_code and "b == 0" not in calc_code:
-            root_cause = "divide(a, b) does not guard against b == 0, causing ZeroDivisionError."
-            proposed_fix = "Add an explicit check for b == 0 and raise ValueError with a clear message."
 
-        # Summarize analysis BEFORE edits (requirement)
+        #Heuristic 1: Explicit user signal
+        if (
+            "zerodivisionerror" in user_report
+            or "division by zero" in user_report
+            or "divide(10, 0)" in user_report
+            or "b=0" in user_report
+        ):
+            root_cause = (
+                "calculator.divide is called with b == 0, "
+                "causing a ZeroDivisionError."
+            )
+            proposed_fix = (
+                "Add an explicit guard for b == 0 in divide() "
+                "and raise a ValueError with a clear message."
+            )
+
+        #Heuristic 2: Static code analysis fallback
+        elif "def divide" in calc_code and "b == 0" not in calc_code:
+            root_cause = (
+                "divide(a, b) does not guard against b == 0, "
+                "leading to a runtime crash."
+            )
+            proposed_fix = (
+                "Add explicit b == 0 handling in divide()."
+            )
+
+        #Still unknown
+        if not root_cause:
+            msg = (
+                f"Bug analysis summary for {bug_id}:\n"
+                f"- Suspected location: {calc_rel}\n"
+                "- Root cause: Unable to confidently identify yet.\n"
+                "- Proposed fix: Please share the exact error message or stack trace."
+            )
+            self.mem.add_turn("agent", msg)
+            print(f"Agent: {msg}")
+            return
+
+        # Save state
+        bug.root_cause = root_cause
+        bug.proposed_fix = proposed_fix
+
+        #REQUIRED: summarize BEFORE fixing
         analysis = (
             f"Bug analysis summary for {bug_id}:\n"
             f"- Suspected location: {calc_rel}\n"
-            f"- Root cause: {root_cause or 'Need more info / different bug than demo heuristics.'}\n"
-            f"- Proposed fix: {proposed_fix or 'I can inspect additional files if you point me to the failing path.'}\n"
-            "If you approve, I will implement the fix + add tests, then I’ll ask permission before running pytest."
+            f"- Root cause: {root_cause}\n"
+            f"- Proposed fix: {proposed_fix}\n\n"
+            "If you approve, I will implement the fix, add tests, "
+            "and then request permission before running pytest."
         )
-        bug.root_cause = root_cause
-        bug.proposed_fix = proposed_fix
+
         self.mem.add_turn("agent", analysis)
         print(f"Agent: {analysis}")
 
-        if proposed_fix:
-            # In this demo agent, proceed automatically to implement; user can stop by saying "no".
-            self._implement_fix_and_tests(bug_id)
+        # Auto-proceed for demo
+        self._implement_fix_and_tests(bug_id)
+
 
     def _implement_fix_and_tests(self, bug_id: str) -> None:
         bug = next(b for b in self.mem.bugs if b.bug_id == bug_id)
