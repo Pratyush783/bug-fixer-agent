@@ -1,0 +1,8 @@
+[project]
+name = "demo-repo"
+version = "0.0.0"
+requires-python = ">=3.9"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
