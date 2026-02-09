@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Bug Fixer Agent</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="header">
+      <div class="title">Bug Fixer Agent</div>
+      <div class="subtitle">Web UI demo (diff + permission-gated bash + test output)</div>
+    </header>
+
+    <main class="layout">
+      <section class="panel chat">
+        <div id="chatLog" class="chat-log"></div>
+
+        <form id="chatForm" class="composer">
+          <input id="chatInput" class="composer-input" placeholder="Describe a bug or ask a question..." />
+          <button class="composer-btn" type="submit">Send</button>
+        </form>
+      </section>
+
+      <section class="panel side">
+        <div class="side-title">Outputs</div>
+
+        <div class="block">
+          <div class="block-title">Latest Diff</div>
+          <pre id="diffBox" class="codebox">(no diff yet)</pre>
+        </div>
+
+        <div class="block">
+          <div class="block-title">Test Output</div>
+          <pre id="testBox" class="codebox">(no tests run yet)</pre>
+        </div>
+      </section>
+    </main>
+
+    <!-- Permission Modal -->
+    <div id="modalBackdrop" class="modal-backdrop hidden"></div>
+    <div id="permissionModal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="modal-title">Permission Request</div>
+      <div class="modal-body">
+        <div class="modal-text">
+          The agent wants to execute a bash command. Approve?
+        </div>
+        <pre id="commandBox" class="codebox"></pre>
+        <div class="modal-actions">
+          <button id="denyBtn" class="btn danger">Reject</button>
+          <button id="approveBtn" class="btn primary">Approve</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

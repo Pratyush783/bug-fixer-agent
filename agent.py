@@ -100,7 +100,11 @@ class BugFixerAgent:
         bug = next(b for b in self.mem.bugs if b.bug_id == bug_id)
 
         target_file = "demo_repo/src/calculator.py"
+
+
         ok, code = self.tools.read_file(target_file)
+        print("DEBUG: Reading file:", target_file)
+        print("DEBUG: File contents:\n", code)
         if not ok:
             msg = f"Could not read {target_file}: {code}"
             self.mem.add_turn("agent", msg)
@@ -123,14 +127,23 @@ class BugFixerAgent:
 
         # 🔹 Deterministic fallback if LLM unavailable
         if not root_cause:
-            if "def divide" in code and "b == 0" not in code:
+            if "divide(" in code and "return a / b" in code:
                 root_cause = (
-                    "The divide(a, b) function does not guard against b == 0, "
-                    "leading to a ZeroDivisionError at runtime."
+                    "The divide(a, b) function performs division without "
+                    "checking if b is zero, causing a ZeroDivisionError."
                 )
                 proposed_fix = (
                     "Add an explicit check for b == 0 and raise a clear ValueError."
                 )
+
+            # if "def divide" in code and "b == 0" not in code:
+            #     root_cause = (
+            #         "The divide(a, b) function does not guard against b == 0, "
+            #         "leading to a ZeroDivisionError at runtime."
+            #     )
+            #     proposed_fix = (
+            #         "Add an explicit check for b == 0 and raise a clear ValueError."
+            #     )
 
         #Still uncertain → ask for more info
         if not root_cause:
@@ -177,13 +190,18 @@ class BugFixerAgent:
             return
 
         if "b == 0" not in code:
-            updated = code.replace(
-                "def divide(a: float, b: float) -> float:\n    return a / b\n",
-                "def divide(a: float, b: float) -> float:\n"
-                "    if b == 0:\n"
-                "        raise ValueError(\"Cannot divide by zero\")\n"
-                "    return a / b\n",
-            )
+            # updated = code.replace(
+            #     "def divide(a: float, b: float) -> float:\n    return a / b\n",
+            #     "def divide(a: float, b: float) -> float:\n"
+            #     "    if b == 0:\n"
+            #     "        raise ValueError(\"Cannot divide by zero\")\n"
+            #     "    return a / b\n",
+            # )
+            if "def divide" in code and "b == 0" not in code:
+                updated = code.replace(
+                    "return a / b",
+                    "if b == 0:\n        raise ValueError(\"Cannot divide by zero\")\n    return a / b"
+                )
             self.tools.edit_file(target_file, updated)
             bug.files_changed.append(target_file)
 
@@ -214,7 +232,8 @@ class BugFixerAgent:
     # TEST EXECUTION
     # =========================
     def _run_tests_flow(self) -> None:
-        result = self.tools.bash("pytest -q")
+        #result = self.tools.bash("pytest -q")
+        result = self.tools.bash("PYTHONPATH=demo_repo pytest -q")
 
         summary = "PASS" if result.ok else "FAIL"
         if self.mem.bugs:
